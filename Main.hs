@@ -5,8 +5,10 @@ import System.IO (stdin, stdout, hSetBuffering, BufferMode(..))
 import Data.Char (chr, ord)
 import Control.Applicative ((<$>))
 import Control.Monad (when)
+import Control.Monad.State
 
 hello = "+++++++++[>++++++++>+++++++++++>+++++<<<-]>.>++.+++++++..+++.>-.------------.<++++++++.--------.+++.------.--------.>+."
+inputABC = ",>,>,.<.<."
 
 main :: IO ()
 main = do
@@ -15,7 +17,7 @@ main = do
   args <- getArgs
   when (length args > 0) $ interpret $ args !! 0
 
-interpret code = eval (0, repeat 0) (compile code) >> putStrLn ""
+interpret code = runStateT (eval (compile code)) (0, repeat 0) >> putStrLn ""
 
 data Inst = IncPtr
           | DecPtr
@@ -43,33 +45,53 @@ compile code = fst . compile' . sanitize $ code
                                    in (Block insts : insts2, remain2)
                             ']' -> ([Recur], cs)
 
-data S = S { ptr :: Int, vals :: [Int] }
+type Ptr = Int
+type Val = Int
+type BFState = (Ptr, [Val])
 
-eval :: (Int, [Int]) -> [Inst] -> IO (Bool, (Int, [Int]))
-eval st [] = return (False, st)
-eval (ptr, vals) (IncPtr:insts) = eval (ptr + 1, vals) insts
-eval (ptr, vals) (DecPtr:insts) = eval (ptr - 1, vals) insts
-eval (ptr, vals) (IncVal:insts) = eval (ptr, incVal ptr vals) insts
-eval (ptr, vals) (DecVal:insts) = eval (ptr, decVal ptr vals) insts
-eval (ptr, vals) (PutVal:insts) = do { putChar $ chr (getVal ptr vals); eval (ptr, vals) insts }
-eval (ptr, vals) (GetVal:insts) = do 
-  putStr "Input char: "
-  val <- ord <$> getChar
-  putStrLn ""
-  eval (ptr, putVal ptr val vals) insts
-eval (ptr, vals) loop@(Block block:insts) = do (recur, st2) <- eval (ptr, vals) block
-                                               if recur then eval st2 loop else eval st2 insts
-eval st@(ptr, vals) (Recur:insts) = return $ (getVal ptr vals /= 0, st)
+modPtr :: (Ptr -> Ptr) -> BFState -> BFState
+modPtr f (p,vs) = (f p, vs)
 
-getVal :: Int -> [Int] -> Int
-getVal n vals = vals !! n
+incPtr :: BFState -> BFState
+incPtr = modPtr (+1)
 
-putVal :: Int -> Int -> [Int] -> [Int]
-putVal n val [] = []
-putVal n val (x:xs) = if n == 0 then val : xs else x : putVal (n - 1) val xs
+decPtr :: BFState -> BFState
+decPtr = modPtr $ \p -> p - 1
 
-incVal :: Int -> [Int] -> [Int]
-incVal n vals = putVal n (getVal n vals + 1) vals
+getVal :: BFState -> Val
+getVal (p,vs) = vs !! p
 
-decVal :: Int -> [Int] -> [Int]
-decVal n vals = putVal n (getVal n vals - 1) vals
+putVal :: BFState -> Val -> BFState
+putVal (p,vs) v = (p, replaceNth p v vs)
+
+replaceNth :: Int -> b -> [b] -> [b]
+replaceNth n v [] = []
+replaceNth n v (x:xs) = if n == 0 then v : xs else x : replaceNth (n - 1) v xs
+
+incVal :: BFState -> BFState
+incVal st@(p,vs) = putVal st $ getVal st + 1
+
+decVal :: BFState -> BFState
+decVal st@(p,vs) = putVal st $ getVal st - 1
+
+eval :: [Inst] -> StateT BFState IO Bool
+eval [] = return False
+eval (IncPtr:insts) = modify incPtr >> eval insts
+eval (DecPtr:insts) = modify decPtr >> eval insts
+eval (IncVal:insts) = modify incVal >> eval insts
+eval (DecVal:insts) = modify decVal >> eval insts
+eval (PutVal:insts) = do st <- get
+                         liftIO $ putChar $ chr $ getVal st
+                         eval insts
+eval (GetVal:insts) = do val <- liftIO $ inputPrompt
+                         modify $ (flip putVal) val
+                         eval insts
+  where inputPrompt = do putStr "Input char: "
+                         val <- ord <$> getChar
+                         putStrLn ""
+                         return val
+eval loop@(Block block:insts) = do recur <- eval block
+                                   if recur then eval loop else eval insts
+eval (Recur:insts) = do v <- getVal <$> get
+                        return $ v /= 0
+
