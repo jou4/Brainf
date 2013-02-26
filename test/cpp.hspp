@@ -1,0 +1,9 @@
+{-# LINE 1 "cpp.hs" #-}
+#define __GLASGOW_HASKELL__ 700
+#define __STDC_HOSTED__ 1
+#define __DYNAMIC__ 1
+#define darwin_HOST_OS 1
+#define x86_64_HOST_ARCH 1
+#define x86_64_BUILD_ARCH 1
+#define darwin_BUILD_OS 1
+#define __PIC__ 1
