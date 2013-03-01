@@ -7,20 +7,20 @@ data Options = Options { optOutput :: Maybe FilePath
                        } deriving Show
 
 defaultOptions = Options { optOutput = Nothing
-						 , optExpr = Nothing
-					     , optAssembly = False
+                         , optExpr = Nothing
+                         , optAssembly = False
                          }
 
 argSpec = [ Option ['o'] ["output"]
-				(ReqArg (\d opts -> opts { optOutput = Just d }) "FILE")
-				"output file"
-		  , Option ['e'] ["expr"]
-		  		(ReqArg (\e opts -> opts { optExpr = Just e }) "EXPRESSION")
-		  		"expression"
-		  , Option ['s'] ["assembly"]
-		  		(NoArg (\opts -> opts { optAssembly = True }))
-		  		"assembly code"
-		  ]
+              (ReqArg (\d opts -> opts { optOutput = Just d }) "FILE")
+              "output file"
+          , Option ['e'] ["expr"]
+		  		    (ReqArg (\e opts -> opts { optExpr = Just e }) "EXPRESSION")
+		  		    "expression"
+		      , Option ['s'] ["assembly"]
+		  		    (NoArg (\opts -> opts { optAssembly = True }))
+		  		    "assembly code"
+		      ]
 
 
 parseArgs spec argv
