@@ -7,7 +7,7 @@ import Text.Printf (printf, hPrintf)
 import Control.Monad.State
 import Compiler
 
-data EmitState = EmitState { getHandle :: Handle, getLoopStack :: [Int], getPtrLoaded :: Bool }
+data EmitState = EmitState { getHandle :: Handle, getLoopStack :: [Int], getPtrLoaded :: Bool, getId :: Int }
 
 #if defined(linux_HOST_OS)
 -- Linux
@@ -76,7 +76,7 @@ writeAssembly filePath insts = withFile filePath WriteMode $ \h -> do
   hPutStr h "  movq %rsp, %rbp\n"
   hPrintf h "  subq $%d, %%rsp\n" sizeOfFrame
   hPutStr h "  movq $0, -8(%rbp)\n"
-  evalStateT (emit insts) (EmitState h [0] False)
+  evalStateT (emit insts) (EmitState h [0] False 0)
   hPutStr h "  movb $0x0a, %dil\n"
   hPrintf h "  call %s\n" labelPutc
   hPutStr h "  leave\n"
@@ -100,21 +100,22 @@ loadPtr = do loadNeeded <- gets (not . getPtrLoaded)
              when loadNeeded $ write "movq -8(%rbp), %rsi"
              modify ptrLoaded
 
-genLoopLevel :: StateT EmitState IO Int
-genLoopLevel = do EmitState h stack l <- get
-                  let level = head stack + 1
-                  put $ EmitState h (level:stack) l
-                  return level
+genLoopNewId :: StateT EmitState IO Int
+genLoopNewId = do st <- get
+                  let newId =  getId st + 1
+                  put $ st { getLoopStack = newId : getLoopStack st, getId = newId }
+                  return newId
 
-readLoopLevel :: StateT EmitState IO Int
-readLoopLevel = gets $ head . getLoopStack
+readLoopId :: StateT EmitState IO Int
+readLoopId = gets $ head . getLoopStack
 
-pushLoopLevel :: Int -> EmitState -> EmitState
-pushLoopLevel level (EmitState h stack l) = EmitState h (level:stack) l
+pushLoopId :: Int -> EmitState -> EmitState
+pushLoopId label st = st { getLoopStack = label : getLoopStack st }
 
-popLoopLevel :: EmitState -> EmitState
-popLoopLevel (EmitState h [] l) = EmitState h [] l
-popLoopLevel (EmitState h (x:xs) l) = EmitState h xs l
+popLoopId :: EmitState -> EmitState
+popLoopId st = case getLoopStack st of
+                    [] -> st
+                    (x:xs) -> st { getLoopStack = xs }
 
 emit :: [Inst] -> StateT EmitState IO ()
 emit [] = return ()
@@ -133,22 +134,22 @@ emit (GetVal:insts) = do write $ "call " ++ labelGetc
                          write "movb %al, (%rsp,%rsi,1)"
                          emit insts
 emit (Block block:insts) = do
-  loopLevel <- genLoopLevel
+  loopId <- genLoopNewId
   loadPtr
   write $ "movb (%rsp,%rsi,1), %dil"
   write $ "cmpb $0, %dil"
-  write $ "je " ++ labelLoopEnd loopLevel
-  writeLabel $ labelLoopBegin loopLevel ++ ":"
+  write $ "je " ++ labelLoopEnd loopId
+  writeLabel $ labelLoopBegin loopId ++ ":"
   modify ptrUnloaded
   emit block
   emit insts
 emit (Recur:insts) = do
-  loopLevel <- readLoopLevel
+  loopId <- readLoopId
   loadPtr
   write $ "movb (%rsp,%rsi,1), %dil"
   write $ "cmpb $0, %dil"
-  write $ "jne " ++ labelLoopBegin loopLevel
-  writeLabel $ labelLoopEnd loopLevel ++ ":"
-  modify $ ptrUnloaded . popLoopLevel
+  write $ "jne " ++ labelLoopBegin loopId
+  writeLabel $ labelLoopEnd loopId ++ ":"
+  modify $ ptrUnloaded . popLoopId
   emit insts
 
