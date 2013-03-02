@@ -21,12 +21,18 @@ fdStdOut = "1"
 labelPrefix = "_"
 syscallRead = "0x2000003"
 syscallWrite = "0x2000004"
-fdStdIn = "1"
+fdStdIn = "0"
 fdStdOut = "1"
 #elif defined(mingw32_HOST_OS)
 -- Windows
 #else
 -- Unknown
+-- FreeBSD?
+labelPrefix = ""
+syscallRead = "3"
+syscallWrite = "4"
+fdStdIn = "0"
+fdStdOut = "1"
 #endif
 
 label name = labelPrefix ++ name

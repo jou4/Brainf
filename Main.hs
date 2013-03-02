@@ -2,7 +2,6 @@ module Main where
 
 import System.Environment (getArgs, getProgName)
 import System.Console.GetOpt
-import Control.Monad (when)
 import Compiler
 import VM
 import Emit
@@ -14,12 +13,14 @@ main :: IO ()
 main = do
   args <- getArgs
   (opts, remain) <- compilerOpts args
-  code <- readCode (optExpr opts) remain
-  if optAssembly opts then
-    case optOutput opts of
-      Just output -> writeAssembly output $ compile code
-      Nothing -> error "not specified output file."
-  else interpret code
+  if (optHelp opts) then do { help <- usage; putStrLn help }
+  else do 
+    code <- readCode (optExpr opts) remain
+    if optAssembly opts then
+      case optOutput opts of
+        Just output -> writeAssembly output $ compile code
+        Nothing -> error "not specified output file."
+    else interpret code
 
 readCode :: Maybe String -> [String] -> IO String
 readCode (Just e) _ = return e
@@ -30,12 +31,14 @@ data Options = Options
   { optExpr :: Maybe String
   , optAssembly :: Bool
   , optOutput :: Maybe String
+  , optHelp :: Bool
   } deriving Show
 
 defaultOptions = Options
   { optExpr = Nothing
   , optAssembly = False
   , optOutput = Just "output.s"
+  , optHelp = False
   }
 
 options :: [OptDescr (Options -> Options)]
@@ -49,6 +52,9 @@ options =
   , Option ['o'] ["output"]
 		  (ReqArg (\e opts -> opts { optOutput = Just e }) "FILE")
 		  "output file"
+  , Option ['h'] ["help"]
+		  (NoArg (\opts -> opts { optHelp = True }))
+		  "show help"
   ]
 
 
@@ -56,6 +62,10 @@ compilerOpts :: [String] -> IO (Options, [String])
 compilerOpts argv =
 	case getOpt Permute options argv of
     (o,n,[]  ) -> return (foldl (flip id) defaultOptions o, n)
-    (_,_,errs) -> do { progName <- getProgName
-                     ; error (concat errs ++ usageInfo (header progName) options) }
-    where header progName = "Usage: " ++ progName ++ " [Options] [file]"
+    (_,_,errs) -> do { u <- usage
+                     ; error (concat errs ++ u) }
+
+usage :: IO String
+usage = do progName <- getProgName
+           let header = "Usage: " ++ progName ++ " [Options] [file]"
+           return $ usageInfo header options
