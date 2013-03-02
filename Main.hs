@@ -6,9 +6,6 @@ import Compiler
 import VM
 import Emit
 
-hello = "+++++++++[>++++++++>+++++++++++>+++++<<<-]>.>++.+++++++..+++.>-.------------.<++++++++.--------.+++.------.--------.>+."
-inputABC = ",>,>,.<.<."
-
 main :: IO ()
 main = do
   args <- getArgs

@@ -31,9 +31,9 @@ syscallWrite = "0x2000004"
 fdStdIn = "0"
 fdStdOut = "1"
 #elif defined(mingw32_HOST_OS)
--- Windows
+-- Windows TODO
 #else
--- Unknown
+-- Unknown TODO
 #endif
 
 label name = labelPrefix ++ name
