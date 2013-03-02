@@ -12,13 +12,17 @@ data EmitState = EmitState { getHandle :: Handle, getLoopStack :: [Int], getPtrL
 #if defined(linux_HOST_OS)
 -- Linux
 labelPrefix = ""
-syscallRead = "3"
-syscallWrite = "4"
+syscallRead = "0"
+syscallWrite = "1"
+fdStdIn = "0"
+fdStdOut = "1"
 #elif defined(darwin_HOST_OS)
 -- MacOSX
 labelPrefix = "_"
 syscallRead = "0x2000003"
 syscallWrite = "0x2000004"
+fdStdIn = "1"
+fdStdOut = "1"
 #elif defined(mingw32_HOST_OS)
 -- Windows
 #else
@@ -39,10 +43,11 @@ writeAssembly filePath insts = withFile filePath WriteMode $ \h -> do
   hPrintf h "%s:\n" labelPutc
   hPutStr h "  pushq %rbp\n"
   hPutStr h "  movq %rsp, %rbp\n"
-  hPutStr h "  movl %edi, -4(%rbp)\n"
+  hPutStr h "  subq $1, %rsp\n"
+  hPutStr h "  movb %dil, -1(%rbp)\n"
   hPrintf h "  movq $%s, %%rax\n" syscallWrite
-  hPutStr h "  movq $1, %rdi\n"
-  hPutStr h "  leaq -4(%rbp), %rsi\n"
+  hPrintf h "  movq $%s, %%rdi\n" fdStdOut
+  hPutStr h "  leaq -1(%rbp), %rsi\n"
   hPutStr h "  movq $1, %rdx\n"
   hPutStr h "  syscall\n"
   hPutStr h "  leave\n"
@@ -50,13 +55,13 @@ writeAssembly filePath insts = withFile filePath WriteMode $ \h -> do
   hPrintf h "%s:\n" labelGetc
   hPutStr h "  pushq %rbp\n"
   hPutStr h "  movq %rsp, %rbp\n"
-  hPutStr h "  movl %edi, -4(%rbp)\n"
+  hPutStr h "  subq $1, %rsp\n"
   hPrintf h "  movq $%s, %%rax\n" syscallRead
-  hPutStr h "  movq $1, %rdi\n"
-  hPutStr h "  leaq -4(%rbp), %rsi\n"
+  hPrintf h "  movq $%s, %%rdi\n" fdStdIn
+  hPutStr h "  leaq -1(%rbp), %rsi\n"
   hPutStr h "  movq $1, %rdx \n"
   hPutStr h "  syscall\n"
-  hPutStr h "  movl -4(%rbp), %eax\n"
+  hPutStr h "  movb -1(%rbp), %al\n"
   hPutStr h "  leave\n"
   hPutStr h "  ret\n"
   hPrintf h ".globl %s\n" labelMain
