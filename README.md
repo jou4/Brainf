@@ -5,15 +5,15 @@
 
 ## Usage
 
-* execute code
+execute code
 
     $ ./bf -e ">++++++++++[<++++++++>-]<."
 
-* execute file
+execute file
 
     $ ./bf example/hello.bf
 
-* output assembly code and execute
+output assembly code and execute
 
     $ ./bf -s example/hello.bf -o output.s
     $ gcc output.s
