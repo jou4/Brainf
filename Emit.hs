@@ -16,6 +16,13 @@ syscallRead = "0"
 syscallWrite = "1"
 fdStdIn = "0"
 fdStdOut = "1"
+#elif defined(freebsd_HOST_OS)
+-- FreeBSD
+labelPrefix = ""
+syscallRead = "3"
+syscallWrite = "4"
+fdStdIn = "0"
+fdStdOut = "1"
 #elif defined(darwin_HOST_OS)
 -- MacOSX
 labelPrefix = "_"
@@ -27,12 +34,6 @@ fdStdOut = "1"
 -- Windows
 #else
 -- Unknown
--- FreeBSD?
-labelPrefix = ""
-syscallRead = "3"
-syscallWrite = "4"
-fdStdIn = "0"
-fdStdOut = "1"
 #endif
 
 label name = labelPrefix ++ name
