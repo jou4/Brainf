@@ -90,10 +90,10 @@ writeLabel s = do h <- gets getHandle
                   liftIO $ hPutStrLn h s
 
 ptrLoaded :: EmitState -> EmitState
-ptrLoaded (EmitState h s _) = EmitState h s True
+ptrLoaded st = st { getPtrLoaded = True }
 
 ptrUnloaded :: EmitState -> EmitState
-ptrUnloaded (EmitState h s _) = EmitState h s False
+ptrUnloaded st = st { getPtrLoaded = False }
 
 loadPtr :: StateT EmitState IO ()
 loadPtr = do loadNeeded <- gets (not . getPtrLoaded)

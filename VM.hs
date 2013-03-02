@@ -10,39 +10,42 @@ interpret :: [Char] -> IO ()
 interpret code = do
   hSetBuffering stdin NoBuffering
   hSetBuffering stdout NoBuffering
-  runStateT (eval (compile code)) (0, repeat 0)
+  runStateT (eval (compile code)) $ EvalState { getPtr = 0, getVals = repeat 0 }
   putStrLn ""
 
 type Ptr = Int
 type Val = Int
-type BFState = (Ptr, [Val])
+data EvalState = EvalState
+    { getPtr :: Ptr
+    , getVals :: [Val]
+    }
 
-modPtr :: (Ptr -> Ptr) -> BFState -> BFState
-modPtr f (p,vs) = (f p, vs)
+modPtr :: (Ptr -> Ptr) -> EvalState -> EvalState
+modPtr f st = st { getPtr = f $ getPtr st }
 
-incPtr :: BFState -> BFState
+incPtr :: EvalState -> EvalState
 incPtr = modPtr (+1)
 
-decPtr :: BFState -> BFState
+decPtr :: EvalState -> EvalState
 decPtr = modPtr $ \p -> p - 1
 
-getVal :: BFState -> Val
-getVal (p,vs) = vs !! p
+getVal :: EvalState -> Val
+getVal (EvalState p vs) = vs !! p
 
-putVal :: BFState -> Val -> BFState
-putVal (p,vs) v = (p, replaceNth p v vs)
+putVal :: EvalState -> Val -> EvalState
+putVal st@(EvalState p vs) v = st { getVals = replaceNth p v vs }
 
 replaceNth :: Int -> b -> [b] -> [b]
 replaceNth n v [] = []
 replaceNth n v (x:xs) = if n == 0 then v : xs else x : replaceNth (n - 1) v xs
 
-incVal :: BFState -> BFState
-incVal st@(p,vs) = putVal st $ getVal st + 1
+incVal :: EvalState -> EvalState
+incVal st@(EvalState p vs) = putVal st $ getVal st + 1
 
-decVal :: BFState -> BFState
-decVal st@(p,vs) = putVal st $ getVal st - 1
+decVal :: EvalState -> EvalState
+decVal st@(EvalState p vs) = putVal st $ getVal st - 1
 
-eval :: [Inst] -> StateT BFState IO Bool
+eval :: [Inst] -> StateT EvalState IO Bool
 eval [] = return False
 eval (IncPtr:insts) = modify incPtr >> eval insts
 eval (DecPtr:insts) = modify decPtr >> eval insts
