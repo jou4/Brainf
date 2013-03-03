@@ -54,13 +54,9 @@ eval (DecVal:insts) = modify decVal >> eval insts
 eval (PutVal:insts) = do st <- get
                          liftIO $ putChar $ chr $ getVal st
                          eval insts
-eval (GetVal:insts) = do val <- liftIO $ inputPrompt
+eval (GetVal:insts) = do val <- liftIO $ ord <$> getChar
                          modify $ (flip putVal) val
                          eval insts
-  where inputPrompt = do putStr "Input char: "
-                         val <- ord <$> getChar
-                         putStrLn ""
-                         return val
 eval loop@(Block block:insts) = do recur <- eval block
                                    if recur then eval loop else eval insts
 eval (Recur:insts) = do v <- getVal <$> get
