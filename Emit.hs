@@ -153,4 +153,3 @@ emit (Recur:insts) = do
   writeLabel $ labelLoopEnd loopId ++ ":"
   modify $ ptrUnloaded . popLoopId
   emit insts
-
